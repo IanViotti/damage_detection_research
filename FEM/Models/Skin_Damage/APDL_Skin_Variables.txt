@@ -1,0 +1,11 @@
+core_width = 0.0125
+n_lam = 4
+plate_width = 0.2
+plate_height = 0.2
+
+pos_x = 0.1
+pos_y = 0.15
+theta = 45
+c = 0.05
+r = 0.1
+n_dam = 2

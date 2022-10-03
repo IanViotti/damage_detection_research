@@ -1,0 +1,472 @@
+!===================== Inicialização ===============================
+/input,menust,tmp,''
+WPSTYLE,,,,,,,,0
+/NOPR   
+KEYW,PR_SET,1   
+KEYW,PR_STRUC,1 
+KEYW,PR_THERM,0 
+KEYW,PR_FLUID,0 
+KEYW,PR_ELMAG,0 
+KEYW,MAGNOD,0   
+KEYW,MAGEDG,0   
+KEYW,MAGHFE,0   
+KEYW,MAGELC,0   
+KEYW,PR_MULTI,0 
+/GO 
+
+/PREP7  
+/UNITS,SI
+*AFUN, DEG
+
+PARRES,CHANGE,C:\Users\Ian\Desktop\Unifei\GEMEC\5_FEM\Database\Core_Damage\APDL_Core_Variables.txt, , 
+
+! ========================= Materiais ===========================
+MPTEMP,,,,,,,,  
+MPTEMP,1,0  
+MPDATA,EX,1,,40000000   
+MPDATA,PRXY,1,,0.4  
+MPTEMP,,,,,,,,  
+MPTEMP,1,0  
+MPDATA,DENS,1,,60   
+MPTEMP,,,,,,,,  
+MPTEMP,1,0  
+MPDATA,EX,2,,49500000000
+MPDATA,EY,2,,49500000000
+MPDATA,EZ,2,,10000000000
+MPDATA,PRXY,2,,0.15 
+MPDATA,PRYZ,2,,0.15 
+MPDATA,PRXZ,2,,0.25 
+MPDATA,GXY,2,,8500000000
+MPDATA,GYZ,2,,1000000000
+MPDATA,GXZ,2,,1000000000
+MPTEMP,,,,,,,,  
+MPTEMP,1,0  
+MPDATA,DENS,2,,1600 
+
+! == Elementos == 
+ET,1,SHELL181   
+ET,2,SOLID186   
+
+! == Laminado == 
+sect,1,shell,,Laminate  
+*do,j,1,n_lam ! Create n_lam plies for the laminate
+set,1,j 
+secdata, 0.0002,2,0.0,3 
+*enddo 
+secoffset,MID   
+seccontrol,,,, , , ,
+
+! ========================== Geometria ============================
+
+! == Estrutura == 
+BLC4,0,0,plate_width,plate_height
+BLC4,0,0,plate_width,plate_height,core_width   
+FLST,2,1,8  
+FITEM,2,0,0,0.1E-01 
+WPAVE,P51X  
+BLC4,0,0,plate_width,plate_height
+
+! == Elipsoide ==  
+!LOCAL,11, 1, 0.1, 0.15, 0.005, 45, 0, 10,  0.1 
+LOCAL,11,1,pos_x,pos_y,pos_z,theta_z,theta_x,theta_y,r  ! PAR1 argument is key for creating elliptical CSYS   
+
+CSYS,11 
+K,110:121,c,0:180:18      ! create keypoints for spline   
+K,121,0,0,0
+FLST,2,12,3 
+FITEM,2,110   
+FITEM,2,111  
+FITEM,2,112   
+FITEM,2,113   
+FITEM,2,114   
+FITEM,2,115   
+FITEM,2,116   
+FITEM,2,117   
+FITEM,2,118   
+FITEM,2,119  
+FITEM,2,120  
+FITEM,2,121  
+A,P51X  
+
+FLST,2,1,5,ORDE,1   
+FITEM,2,9   
+FLST,8,2,3  
+FITEM,8,120  
+FITEM,8,110   
+VROTAT,P51X, , , , , ,P51X, ,360, 2 ! Rotação da elípse
+VADD, 2,3  							! Add os dois lados da elipsoide
+
+!BLC5,0.1,0.15,0.05,0.05,-0.01   
+BLC5,pos_x,pos_y, 1.5*c + c*cos(theta_z), 1.5*c + c*sin(theta_z), -0.01
+
+VSBV, 2, 4, , DELETE, DELETE 	! Subtração do elipsoide na dam_box
+VSBV, 1, 3, , DELETE, KEEP 		! Subtração do elipsoide na dam_box
+VDELE, 4,4,1,0 					! Deleta a elipsoide
+
+VADD, 2,3
+
+! ========================= Malha ==============================
+! == Malha Volume ==
+!LSEL, S, LINE, , 5,16,1,0
+!LESIZE,ALL,0.005, , , ,1, , ,1, 
+!DESIZE, 3, 2, 999, 15, 28, , , 1, 4
+!SMRTSIZE, SIZLVL, FAC, EXPND, TRANS, ANGL, ANGH, GRATIO, SMHLC, SMANC, MXITR, SPRX
+SMRTSIZE, 0.65, , , ,1.5 , , , , , , 
+
+MSHAPE,1,3D 	! 1 para tetra e 0 para hexa (Hexa não funciona em geometria feia)
+MSHKEY,0
+CM,_Y,VOLU  
+VSEL, , , ,1 
+CM,_Y1,VOLU 
+CHKMSH,'VOLU'   
+CMSEL,S,_Y  
+VMESH,_Y1   
+CMDELE,_Y   
+CMDELE,_Y1  
+CMDELE,_Y2 
+
+! == Malha Area ==
+LSEL, S, LINE, , 1,4,1,0
+LSEL, A, LINE, , 17,20,1,0
+
+LESIZE,ALL,0.005, , , ,1, , ,1, 
+
+MSHAPE,0,2D ! 1 para tri e 0 para quad
+MSHKEY,0
+CM,_Y,AREA  
+ASEL,S,AREA, ,1,8,7,0
+CM,_Y1,AREA 
+CHKMSH,'AREA'   
+CMSEL,S,_Y  
+AMESH,_Y1   
+CMDELE,_Y   
+CMDELE,_Y1  
+CMDELE,_Y2  
+
+! ====================== Contato ==========================
+CM,_TARGET,AREA 
+CM,_NODECM,NODE 
+CM,_ELEMCM,ELEM 
+CM,_KPCM,KP 
+CM,_LINECM,LINE 
+CM,_AREACM,AREA 
+CM,_VOLUCM,VOLU 
+MP,MU,1,
+MAT,1   
+MP,EMIS,1,7.88860905221e-31 
+R,3 
+REAL,3  
+ET,3,170
+ET,4,174
+R,3,,,1.0,0.1,0,
+RMORE,,,1.0E20,0.0,1.0, 
+RMORE,0.0,0,1.0,,1.0,0.5
+RMORE,0,1.0,1.0,0.0,,1.0
+RMORE,,,,,,1.0  
+KEYOPT,4,4,0
+KEYOPT,4,5,0
+KEYOPT,4,7,0
+KEYOPT,4,8,0
+KEYOPT,4,9,0
+KEYOPT,4,10,0   
+KEYOPT,4,11,0   
+KEYOPT,4,12,5   
+KEYOPT,4,14,0   
+KEYOPT,4,18,0   
+KEYOPT,4,2,0
+KEYOPT,3,5,0
+ASEL,S,,,4  
+ASEL,A,,,5  
+ASEL,A,,,6  
+ASEL,A,,,7  
+ASEL,A,,,9  
+ASEL,A,,,10 
+ASEL,A,,,11 
+ASEL,A,,,12 
+ASEL,A,,,13 
+ASEL,A,,,14 
+ASEL,A,,,15 
+ASEL,A,,,16 
+ASEL,A,,,17 
+ASEL,A,,,18 
+ASEL,A,,,19 
+ASEL,A,,,21 
+ASEL,A,,,22 
+ASEL,A,,,23 
+ASEL,A,,,24 
+ASEL,A,,,25 
+ASEL,A,,,26 
+ASEL,A,,,27 
+ASEL,A,,,28 
+ASEL,A,,,29 
+ASEL,A,,,31 
+ASEL,A,,,32 
+ASEL,A,,,35 
+ASEL,A,,,36 
+CM,_TARGET,AREA 
+TYPE,3  
+NSLA,S,1
+ESLN,S,0
+ESLL,U  
+ESEL,U,ENAME,,188,189   
+NSLE,A,CT2  
+ESURF   
+CMSEL,S,_ELEMCM 
+ASEL,S,,,1  
+CM,_CONTACT,AREA
+TYPE,4  
+NSLA,S,1
+ESLN,S,0
+NSLE,A,CT2 ! CZMESH patch (fsk qt-40109 8/2008) 
+ESURF   
+R,4 
+REAL,4  
+ET,5,170
+ET,6,174
+R,4,,,1.0,0.1,0,
+RMORE,,,1.0E20,0.0,1.0, 
+RMORE,0.0,0,1.0,,1.0,0.5
+RMORE,0,1.0,1.0,0.0,,1.0
+RMORE,,,,,,1.0  
+KEYOPT,6,4,0
+KEYOPT,6,5,0
+KEYOPT,6,7,0
+KEYOPT,6,8,0
+KEYOPT,6,9,0
+KEYOPT,6,10,0   
+KEYOPT,6,11,0   
+KEYOPT,6,12,5   
+KEYOPT,6,14,0   
+KEYOPT,6,18,0   
+KEYOPT,6,2,0
+KEYOPT,5,1,0
+KEYOPT,5,3,0
+KEYOPT,5,5,0
+TYPE,5  
+ESEL,S,TYPE,,4  
+NSLE,S  
+ESLN,S,0
+ESURF   
+TYPE,6  
+ESEL,S,TYPE,,3  
+NSLE,S  
+ESLN,S,0
+ESURF   
+*SET,_REALID,3  
+ALLSEL  
+ESEL,ALL
+ESEL,S,TYPE,,3  
+ESEL,A,TYPE,,4  
+ESEL,R,REAL,,3  
+ESEL,ALL
+ESEL,S,TYPE,,3  
+ESEL,A,TYPE,,4  
+ESEL,R,REAL,,3  
+ESEL,A,TYPE,,5  
+ESEL,A,TYPE,,6  
+CMSEL,A,_NODECM 
+CMDEL,_NODECM   
+CMSEL,A,_ELEMCM 
+CMDEL,_ELEMCM   
+CMSEL,S,_KPCM   
+CMDEL,_KPCM 
+CMSEL,S,_LINECM 
+CMDEL,_LINECM   
+CMSEL,S,_AREACM 
+CMDEL,_AREACM   
+CMSEL,S,_VOLUCM 
+CMDEL,_VOLUCM   
+CMDEL,_TARGET   
+CMDEL,_CONTACT  
+CM,_TARGET,AREA 
+CM,_NODECM,NODE 
+CM,_ELEMCM,ELEM 
+CM,_KPCM,KP 
+CM,_LINECM,LINE 
+CM,_AREACM,AREA 
+CM,_VOLUCM,VOLU 
+MP,MU,1,0   
+MAT,1   
+MP,EMIS,1,7.88860905221e-31 
+R,5 
+REAL,5  
+ET,7,170
+ET,8,174
+R,5,,,1.0,0.1,0,
+RMORE,,,1.0E20,0.0,1.0, 
+RMORE,0.0,0,1.0,,1.0,0.5
+RMORE,0,1.0,1.0,0.0,,1.0
+RMORE,,,,,,1.0  
+KEYOPT,8,4,0
+KEYOPT,8,5,0
+KEYOPT,8,7,0
+KEYOPT,8,8,0
+KEYOPT,8,9,0
+KEYOPT,8,10,0   
+KEYOPT,8,11,0   
+KEYOPT,8,12,5   
+KEYOPT,8,14,0   
+KEYOPT,8,18,0   
+KEYOPT,8,2,0
+KEYOPT,7,5,0
+ASEL,S,,,4  
+ASEL,A,,,5  
+ASEL,A,,,6  
+ASEL,A,,,7  
+ASEL,A,,,9  
+ASEL,A,,,10 
+ASEL,A,,,11 
+ASEL,A,,,12 
+ASEL,A,,,13 
+ASEL,A,,,14 
+ASEL,A,,,15 
+ASEL,A,,,16 
+ASEL,A,,,17 
+ASEL,A,,,18 
+ASEL,A,,,19 
+ASEL,A,,,21 
+ASEL,A,,,22 
+ASEL,A,,,23 
+ASEL,A,,,24 
+ASEL,A,,,25 
+ASEL,A,,,26 
+ASEL,A,,,27 
+ASEL,A,,,28 
+ASEL,A,,,29 
+ASEL,A,,,31 
+ASEL,A,,,32 
+ASEL,A,,,35 
+ASEL,A,,,36 
+CM,_TARGET,AREA 
+TYPE,7  
+NSLA,S,1
+ESLN,S,0
+ESLL,U  
+ESEL,U,ENAME,,188,189   
+NSLE,A,CT2  
+ESURF   
+CMSEL,S,_ELEMCM 
+ASEL,S,,,8  
+CM,_CONTACT,AREA
+TYPE,8  
+NSLA,S,1
+ESLN,S,0
+NSLE,A,CT2 ! CZMESH patch (fsk qt-40109 8/2008) 
+ESURF   
+R,6 
+REAL,6  
+ET,9,170
+ET,10,174   
+R,6,,,1.0,0.1,0,
+RMORE,,,1.0E20,0.0,1.0, 
+RMORE,0.0,0,1.0,,1.0,0.5
+RMORE,0,1.0,1.0,0.0,,1.0
+RMORE,,,,,,1.0  
+KEYOPT,10,4,0   
+KEYOPT,10,5,0   
+KEYOPT,10,7,0   
+KEYOPT,10,8,0   
+KEYOPT,10,9,0   
+KEYOPT,10,10,0  
+KEYOPT,10,11,0  
+KEYOPT,10,12,5  
+KEYOPT,10,14,0  
+KEYOPT,10,18,0  
+KEYOPT,10,2,0   
+KEYOPT,9,1,0
+KEYOPT,9,3,0
+KEYOPT,9,5,0
+TYPE,9  
+ESEL,S,TYPE,,8  
+NSLE,S  
+ESLN,S,0
+ESURF   
+TYPE,10 
+ESEL,S,TYPE,,7  
+NSLE,S  
+ESLN,S,0
+ESURF   
+*SET,_REALID,5  
+ALLSEL  
+ESEL,ALL
+ESEL,S,TYPE,,7  
+ESEL,A,TYPE,,8  
+ESEL,R,REAL,,5  
+ESEL,NONE   
+ESEL,A,TYPE,,8  
+ESEL,R,REAL,,5  
+ESURF,,REVERSE  
+ESEL,NONE   
+ESEL,A,TYPE,,9  
+ESEL,R,REAL,,6  
+ESURF,,REVERSE  
+ESEL,ALL
+ESEL,S,TYPE,,7  
+ESEL,A,TYPE,,8  
+ESEL,R,REAL,,5  
+ESEL,ALL
+ESEL,S,TYPE,,7  
+ESEL,A,TYPE,,8  
+ESEL,R,REAL,,5  
+ESEL,A,TYPE,,9  
+ESEL,A,TYPE,,10 
+CMSEL,A,_NODECM 
+CMDEL,_NODECM   
+CMSEL,A,_ELEMCM 
+CMDEL,_ELEMCM   
+CMSEL,S,_KPCM   
+CMDEL,_KPCM 
+CMSEL,S,_LINECM 
+CMDEL,_LINECM   
+CMSEL,S,_AREACM 
+CMDEL,_AREACM   
+CMSEL,S,_VOLUCM 
+CMDEL,_VOLUCM   
+CMDEL,_TARGET   
+CMDEL,_CONTACT  
+FINISH  
+
+! ======================== Solução ============================
+/SOL
+ANTYPE,2
+MODOPT,LANB,20  
+EQSLV,SPAR  
+MXPAND,0, , ,0  
+LUMPM,0 
+PSTRES,0
+MODOPT,LANB,20,0,0, ,OFF
+SOLVE   
+FINISH  
+
+! =================== Finish =====================
+/POST1  
+/output,'C:\Users\Ian\Desktop\Unifei\GEMEC\5_FEM\Database\Core_Damage\frequencias_naturais',txt 
+SET,LIST
+/out
+
+!Deslocamento nodal em determinadas posições dos sensores
+
+allsel,all 
+*get,NumNd,node,,count ! total node number 
+*dim,NodalInfo,,Numnd,7 
+
+*do,i,1,7
+set,1,i 
+*vget,NodalInfo(1,1),node,,nlist 
+*vget,NodalInfo(1,2),node,,loc,x 
+*vget,NodalInfo(1,3),node,,loc,y 
+*vget,NodalInfo(1,4),node,,loc,z 
+*vget,NodalInfo(1,5),node,,u,x 
+*vget,NodalInfo(1,6),node,,u,y 
+*vget,NodalInfo(1,7),node,,u,z 
+*cfopen,'C:\Users\Ian\Desktop\Unifei\GEMEC\5_FEM\Database\Core_Damage\Mode%i%',txt 
+*vwrite 
+('Node Num X Y Z UX UY UZ') 
+*vwrite,NodalInfo(1,1),NodalInfo(1,2),NodalInfo(1,3),NodalInfo(1,4),NodalInfo(1,5),NodalInfo(1,6),NodalInfo(1,7)
+(f8.0,f11.5,f11.5,E,E,E,E) 
+*cfclose 
+*enddo 
+/OUTPUT,'output','out','C:\Users\Ian\Desktop\Unifei\GEMEC\5_FEM\Database\Core_Damage'
+
+elemento_danificado = 
+taxa_dano =
